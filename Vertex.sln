@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30320.27
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vertex", "Vertex.csproj", "{B008E3D3-794A-482C-91A5-75CF4F9E214F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B008E3D3-794A-482C-91A5-75CF4F9E214F}.Release|Any CPU.Deploy.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {939A74D0-91AB-4159-9C38-E9736AE77C84}
+	EndGlobalSection
+EndGlobal
