@@ -2,9 +2,9 @@
 
 Youtube audio downloader and player for Android
 
-## Features
- 
 ![](gitm/demo.PNG)
+
+## Features
  
 | Feature | Description |
 | :----- | :------ |
