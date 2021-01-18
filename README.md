@@ -4,7 +4,7 @@ Youtube audio downloader and player for Android
 
 ## Features
  
-![](gitm/demo.png)
+![](gitm/demo.PNG)
  
 | Feature | Description |
 | :----- | :------ |
