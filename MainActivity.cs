@@ -91,12 +91,8 @@ namespace Vertex
             SetContentView(Resource.Layout.content_main);
 
             mediaPlayer = new Playback(this);
-
-
-
-
-            //var ab = ((Activity)ApplicationContext).ActionBar;
-            //Navigat
+             
+            //var ab = ((Activity)ApplicationContext).ActionBar; 
 
             #region Controls
 
@@ -172,16 +168,7 @@ namespace Vertex
             };
 
             pga = new ProgressAdapter(loadingProgress);
-            pga.OnDone += LoadingDone;
-
-            // You can specify video ID or URL
-            //var video = await youtube.Videos.GetAsync("https://youtube.com/watch?v=bnsUkE8i0tU");
-
-            //var title = video.Title; // "Infected Mushroom - Spitfire [Monstercat Release]"
-            //var author = video.Author; // "Monstercat"
-            //var duration = video.Duration;
-
-            //LoadAudio("https://youtube.com/watch?v=bnsUkE8i0tU");
+            pga.OnDone += LoadingDone; 
         }
 
         void InitTracks()
@@ -261,7 +248,7 @@ namespace Vertex
                 var video = await youtube.Videos.GetAsync(uri);
 
 
-                var title = video.Title; // "Infected Mushroom - Spitfire [Monstercat Release]"
+                var title = video.Title; 
                 var duration = video.Duration;
 
                 nameholderText.Text = $"{title}";
@@ -293,16 +280,7 @@ namespace Vertex
 
                         await youtube.Videos.Streams.DownloadAsync(audio, fullpath, pga);
 
-                        SetPlayerAudio(TrackData.FromFile(fullpath));
-
-                        //mediaPlayer.SetAudio(fullpath);
-                        //buttonPlay.Text = STR_PLAY;
-                        //buttonPlay.Enabled = true;
-                        //textViewLength.Text = $"{mediaPlayer.Duration:hh\\:mm\\:ss}";
-                        //textViewCurrentTime.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
-
-                        //var player = MediaPlayer.Create(this, Android.Net.Uri.FromFile(new Java.IO.File(fullpath)));
-                        //player.Start();
+                        SetPlayerAudio(TrackData.FromFile(fullpath)); 
                     }
                 }
             }
