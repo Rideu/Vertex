@@ -82,7 +82,7 @@ namespace Vertex
 
         List<TrackData> tracks = new List<TrackData>();
 
-        protected override void OnCreate(Bundle savedInstanceState)
+        protected async override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
             Xamarin.Essentials.Platform.Init(this, savedInstanceState);
@@ -135,25 +135,18 @@ namespace Vertex
                 }
             };
 
-            string path = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryMusic).ToString();
+            Permissions.StorageWrite rs = new Permissions.StorageWrite();
 
-            var files = Directory.EnumerateFiles(path);
-
-            MediaMetadataRetriever mtr = new MediaMetadataRetriever();
-
-            foreach (var f in files)
+            var writegtd = await rs.CheckStatusAsync();
+            if (writegtd == PermissionStatus.Granted)
             {
-                tracks.Add(TrackData.FromFile(f));
+                writegtd = await rs.RequestAsync();
+                if (writegtd == PermissionStatus.Granted)
+                {
+                    InitTracks();
+                }
             }
 
-            TrackDataAdapter tda = new TrackDataAdapter(this, tracks);
-
-            tda.OnTrackPicked += (s, e) =>
-            {
-                SetPlayerAudio(e);
-            };
-
-            listMenu.Adapter = tda;
 
             seekAudio = FindViewById<SeekBar>(Resource.Id.seekBarAudioSeek);
             seekAudio.ProgressChanged += (s, e) =>
@@ -189,6 +182,36 @@ namespace Vertex
             //var duration = video.Duration;
 
             //LoadAudio("https://youtube.com/watch?v=bnsUkE8i0tU");
+        }
+
+        void InitTracks()
+        {
+
+            string path = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryMusic).ToString();
+
+            var files = Directory.EnumerateFiles(path);
+            var yts = files.Where(n =>
+            n.Contains("Music/[YE]"));
+
+            files = yts.OrderBy(n => n).Concat(files.Except(yts).OrderBy(n => n));
+
+
+
+            MediaMetadataRetriever mtr = new MediaMetadataRetriever();
+
+            foreach (var f in files)
+            {
+                tracks.Add(TrackData.FromFile(f));
+            }
+
+            TrackDataAdapter tda = new TrackDataAdapter(this, tracks);
+
+            tda.OnTrackPicked += (s, e) =>
+            {
+                SetPlayerAudio(e);
+            };
+
+            listMenu.Adapter = tda;
         }
 
         private void InitLoader(object sender, EventArgs e)
