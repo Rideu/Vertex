@@ -47,10 +47,13 @@ namespace Vertex
             MediaPlayer mp;
             Context ctx;
             Loop timespanTask;
+            AudioManager audioManager;
+            int headsetWarn;
             //bool running;
             public Playback(Context ctx)
             {
                 this.ctx = ctx;
+                audioManager = (AudioManager)ctx.GetSystemService(AudioService);
                 //timespanTask = new Task(() => TrackTimestamp());
             }
 
@@ -65,11 +68,26 @@ namespace Vertex
 
             public event EventHandler ProgressChanged;
 
-            void TrackTimestamp()
+            void PlaybackUpdate()
             {
                 if (IsPlaying)
+                {
                     ProgressChanged?.BeginInvoke(null, EventArgs.Empty, null, null);
 
+                    if (!audioManager.WiredHeadsetOn)
+                    {
+                        headsetWarn++;
+                        if (headsetWarn == 4)
+                        {
+                            Pause();
+                            OnPaused?.Invoke(this, EventArgs.Empty);
+                        }
+                    }
+                    else
+                    {
+                        headsetWarn = 0;
+                    }
+                }
                 Thread.Sleep(500);
             }
 
@@ -112,10 +130,12 @@ namespace Vertex
                     timespanTask?.Stop();
 
                     //running = true;
-                    timespanTask = new Loop(TrackTimestamp);
+                    timespanTask = new Loop(PlaybackUpdate);
                     timespanTask.Start();
                 }
             }
+
+            public event EventHandler OnPaused;
 
             public void Pause() { if (CanPlay) { mp.Pause(); } }
 

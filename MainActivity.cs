@@ -82,6 +82,8 @@ namespace Vertex
 
         List<TrackData> tracks = new List<TrackData>();
 
+        AudioManager audioManager;
+
         protected async override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -91,7 +93,7 @@ namespace Vertex
             SetContentView(Resource.Layout.content_main);
 
             mediaPlayer = new Playback(this);
-             
+
             //var ab = ((Activity)ApplicationContext).ActionBar; 
 
             #region Controls
@@ -156,6 +158,7 @@ namespace Vertex
 
             #endregion
 
+
             mediaPlayer.OnFinished += (s, e) =>
             {
                 buttonPlay.Text = STR_PLAY;
@@ -167,8 +170,13 @@ namespace Vertex
                 textViewCurrentTime.Text = $"{mediaPlayer.CurrentPosition:hh\\:mm\\:ss}";
             };
 
+            mediaPlayer.OnPaused += (s, e) =>
+            { 
+                buttonPlay.Text = STR_PLAY;
+            };
+
             pga = new ProgressAdapter(loadingProgress);
-            pga.OnDone += LoadingDone; 
+            pga.OnDone += LoadingDone;
         }
 
         void InitTracks()
@@ -248,7 +256,7 @@ namespace Vertex
                 var video = await youtube.Videos.GetAsync(uri);
 
 
-                var title = video.Title; 
+                var title = video.Title;
                 var duration = video.Duration;
 
                 nameholderText.Text = $"{title}";
@@ -280,7 +288,7 @@ namespace Vertex
 
                         await youtube.Videos.Streams.DownloadAsync(audio, fullpath, pga);
 
-                        SetPlayerAudio(TrackData.FromFile(fullpath)); 
+                        SetPlayerAudio(TrackData.FromFile(fullpath));
                     }
                 }
             }
