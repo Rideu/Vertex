@@ -1,55 +1,26 @@
 ﻿using System;
-using System.Net;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 using Android.App;
-using Android.Webkit;
-using Android.Graphics;
-using Android.Graphics.Drawables;
 using Android.OS;
 using Android.Support.V7.App;
-using Android.Support.V7.View.Menu;
 using Android.Runtime;
 using Android.Widget;
-using Android.Net;
-using Android.Gestures;
 using Android.Views;
-using Android.Util;
 using Android.Support.Design.Widget;
-
-using Xamarin;
 using Xamarin.Essentials;
-using Xamarin.Android;
+using Android.Media;
 
 using YoutubeExplode;
 
-using YoutubeExplode.Videos;
-using YoutubeExplode.Common;
-using YoutubeExplode.Search;
-using YoutubeExplode.Videos.Streams;
-using YoutubeExplode.Videos.ClosedCaptions;
+using Vertex.Media;
+using Vertex.Utils;
 
-using NAudio;
-using NAudio.Wave.WaveFormats;
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
-using NAudio.Dsp;
-using NAudio.Wave.Compression;
-using NAudio.Wave.Asio;
-using NAudio.MediaFoundation;
-using NAudio.FileFormats.Wav;
-using NAudio.FileFormats.Mp3;
-using Android.Media;
-using Android.Media.Audiofx;
-using System.Threading.Tasks;
 using static Xamarin.Essentials.Permissions;
-using Android.Content;
-using Android.Preferences;
 
 namespace Vertex
 {

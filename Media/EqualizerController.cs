@@ -10,19 +10,19 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace Vertex
+namespace Vertex.Media
 {
     internal class EqualizerController
     {
         private Context context;
-        private ContentActivity.Playback playback;
+        private Playback playback;
         private SeekBar eqBand1;
         private SeekBar eqBand2;
         private SeekBar eqBand3;
         private SeekBar eqBand4;
         private SeekBar eqBand5;
 
-        public EqualizerController(Context context, ContentActivity.Playback playback)
+        public EqualizerController(Context context, Playback playback)
         {
             this.context = context;
             this.playback = playback;
@@ -66,7 +66,7 @@ namespace Vertex
             var band = (SeekBar)sender;
             var tag = band.Tag.ToString();
 
-            var bandnum = (tag.Last() - '0') - 1;
+            var bandnum = tag.Last() - '0' - 1;
 
             playback.ChangeBand((short)bandnum, (short)band.Progress);
         }

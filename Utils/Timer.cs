@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Vertex
+namespace Vertex.Utils
 {
     public class Timer
     {

@@ -68,11 +68,11 @@
     <Reference Include="System.Numerics.Vectors" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EqualizerController.cs" />
-    <Compile Include="Timer.cs" />
+    <Compile Include="Media\EqualizerController.cs" />
+    <Compile Include="Utils\Timer.cs" />
     <Compile Include="MainActivity.cs" />
-    <Compile Include="Playback.cs" />
-    <Compile Include="ProgressAdapter.cs" />
+    <Compile Include="Media\Playback.cs" />
+    <Compile Include="Utils\ProgressAdapter.cs" />
     <Compile Include="Resources\Resource.designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resources\Views\TrackHolder.cs" />
