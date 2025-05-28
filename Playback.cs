@@ -3,149 +3,189 @@ using System.Threading;
 using System.Threading.Tasks;
 using Android.Media;
 using Android.Content;
+using Android.Media.Audiofx;
+using System.Linq;
+using static Android.Media.Audiofx.AudioEffect;
+using Android.App;
 
 namespace Vertex
 {
-    public class Loop
-    {
-        Task t;
-        Action action;
-
-        public Loop(Action a)
-        {
-            action = a;
-        }
-
-        public void Start()
-        {
-            running = true;
-            t = new Task(LoopExec);
-            t.Start();
-        }
-
-        bool running;
-
-        void LoopExec()
-        {
-            while (running)
-            {
-                action();
-            }
-        }
-
-        public void Stop()
-        {
-            running = false;
-            //t.Dispose();
-        }
-    }
 
     public partial class ContentActivity
     {
-        class Playback
+        public class Playback
         {
-            MediaPlayer mp;
-            Context ctx;
-            Loop timespanTask;
-            AudioManager audioManager;
-            int headsetWarn;
-            //bool running;
-            public Playback(Context ctx)
-            {
-                this.ctx = ctx;
-                audioManager = (AudioManager)ctx.GetSystemService(AudioService);
-                //timespanTask = new Task(() => TrackTimestamp());
-            }
+            private readonly Activity activity;
+            private readonly AudioManager audioManager;
+            private MediaPlayer mediaPlayer;
+            private Timer timespanTask;
+            private int headsetWarn;
+            private Java.IO.File audioFile;
+            private Equalizer equalizer;
 
             public TimeSpan CurrentPosition
             {
-                get => TimeSpan.FromMilliseconds((int)(mp?.CurrentPosition ?? 0));
+                get => TimeSpan.FromMilliseconds((int)(mediaPlayer?.CurrentPosition ?? 0));
                 set { SeekPrecise((int)value.TotalSeconds); }
             }
-            public TimeSpan Duration { get => TimeSpan.FromMilliseconds((int)(mp?.Duration ?? 0)); }
+
+            public bool IsPlaying => mediaPlayer?.IsPlaying ?? false;
+
+            public TimeSpan Duration { get => TimeSpan.FromMilliseconds((int)(mediaPlayer?.Duration ?? 0)); }
 
             public float Progress => (float)(CurrentPosition.TotalSeconds / Duration.TotalSeconds);
 
+            public short[] EqualizerBandLevels { get; private set; } = { 0, 0, 0, 0, 0 };
+
+            public bool CanPlay => mediaPlayer != null;
+
             public event EventHandler ProgressChanged;
+            public event EventHandler OnPaused;
+            public event EventHandler OnFinished;
+
+            public Playback(Activity ctx)
+            {
+                this.activity = ctx;
+                audioManager = (AudioManager)ctx.GetSystemService(AudioService); 
+            }
 
             void PlaybackUpdate()
             {
                 if (IsPlaying)
                 {
-                    ProgressChanged?.BeginInvoke(null, EventArgs.Empty, null, null);
-
-                    if (!audioManager.WiredHeadsetOn)
-                    {
-                        headsetWarn++;
-                        if (headsetWarn == 4)
-                        {
-                            Pause();
-                            OnPaused?.Invoke(this, EventArgs.Empty);
-                        }
-                    }
-                    else
-                    {
-                        headsetWarn = 0;
-                    }
-                }
-                Thread.Sleep(500);
+                    activity.RunOnUiThread(PeekPlaybackUpdate);
+                } 
             }
 
-            public bool IsPlaying => mp?.IsPlaying ?? false;
+            private void PeekPlaybackUpdate()
+            {
+                ProgressChanged?.BeginInvoke(null, EventArgs.Empty, null, null);
 
-            Java.IO.File audioFile;
+                if (!audioManager.WiredHeadsetOn)
+                {
+                    headsetWarn++;
+                    if (headsetWarn == 4)
+                    {
+                        Pause();
+                        OnPaused?.Invoke(this, EventArgs.Empty);
+                    }
+                }
+                else
+                {
+                    headsetWarn = 0;
+                }
+            }
+
             public void SetAudio(string path)
             {
-                mp?.Stop();
-                mp?.Dispose();
+                mediaPlayer?.Stop();
+                mediaPlayer?.Dispose();
+                 
 
                 audioFile = new Java.IO.File(path);
-                mp = MediaPlayer.Create(ctx, Android.Net.Uri.FromFile(audioFile));
-                mp.Looping = true;
-                //mp.SetDataSource(path);
-                mp.BufferingUpdate += (s, e) =>
+                var furi = Android.Net.Uri.FromFile(audioFile);
+
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.SetDataSource(activity, furi);
+                mediaPlayer.Prepare();
+
+                var iseqsupported = IsEqualizerSupported();
+
+                if (iseqsupported)
+                {
+                    try
+                    {
+                        SetupEqualizer();
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+
+
+                mediaPlayer.Looping = true;
+
+                mediaPlayer.BufferingUpdate += (s, e) =>
                 {
 
                 };
 
-                mp.SeekComplete += (s, e) =>
+                mediaPlayer.SeekComplete += (s, e) =>
                 {
 
                 };
 
-                //mp.PlaybackParams.
-                mp.Completion += (s, e) =>
+                mediaPlayer.Completion += (s, e) =>
                 {
-                    //running = false;
                     OnFinished?.Invoke(s, e);
                 };
+            }
+
+            private void SetupEqualizer()
+            {
+                equalizer?.Release();
+
+                equalizer = new Equalizer(0, mediaPlayer.AudioSessionId);
+                equalizer.SetEnabled(true);
+
+                short bands = equalizer.NumberOfBands;
+                var bandlevelranges = equalizer.GetBandLevelRange();
+
+                short minlevel = bandlevelranges[0];
+                short maxlevel = bandlevelranges[1];
+
+                equalizer.SetBandLevel(0, maxlevel);
+            }
+
+            private static bool IsEqualizerSupported()
+            {
+                bool isSupported = false;
+                Descriptor[] descriptors = AudioEffect.QueryEffects();
+
+                foreach (Descriptor descriptor in descriptors)
+                {
+                    if (descriptor.Type.Equals(AudioEffect.EffectTypeEqualizer))
+                    {
+                        isSupported = true;
+                        break;
+                    }
+                }
+
+                return isSupported;
             }
 
             public void Play()
             {
                 if (CanPlay)
                 {
-                    mp.Start();
+                    mediaPlayer.Start();
 
                     timespanTask?.Stop();
 
                     //running = true;
-                    timespanTask = new Loop(PlaybackUpdate);
+                    timespanTask = new Timer(PlaybackUpdate, 500);
                     timespanTask.Start();
                 }
             }
+             
+            public void Pause()
+            {
+                if (CanPlay)
+                {
+                    mediaPlayer.Pause();
+                }
+            }
+             
+            public void Seek(float f) => mediaPlayer?.SeekTo((long)(mediaPlayer.Duration * f), MediaPlayerSeekMode.NextSync);
 
-            public event EventHandler OnPaused;
+            public void SeekPrecise(long msec) => mediaPlayer?.SeekTo(msec, MediaPlayerSeekMode.NextSync);
 
-            public void Pause() { if (CanPlay) { mp.Pause(); } }
-
-            public bool CanPlay => mp != null;
-
-            public void Seek(float f) => mp?.SeekTo((long)(mp.Duration * f), MediaPlayerSeekMode.NextSync);
-
-            public void SeekPrecise(long msec) => mp?.SeekTo(msec, MediaPlayerSeekMode.NextSync);
-
-            public event EventHandler OnFinished;
+            public void ChangeBand(short band, short value)
+            {
+                EqualizerBandLevels[band] = value;
+                equalizer?.SetBandLevel(band, value);
+            }
         }
     }
 }

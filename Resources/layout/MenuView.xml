@@ -5,14 +5,17 @@
     <RelativeLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:minWidth="25px"
+        android:minHeight="25px">
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingVertical="10px">
+            android:paddingVertical="10px"
+            android:id="@+id/menuReloadTracklist">
 
             <TextView
-                android:text="AudioTrack — Name"
+                android:text="Reload tracklist"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -21,15 +24,6 @@
                 android:typeface="normal"
                 android:textSize="30px"
                 android:layout_gravity="left" />
-            <TextView
-                android:text="12:34:56"
-                android:textAppearance="?android:attr/textAppearanceMedium"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/textViewTimeStamp"
-                android:typeface="normal"
-                android:textSize="30px"
-                android:layout_gravity="right" />
         </FrameLayout>
     </RelativeLayout>
 </RelativeLayout >

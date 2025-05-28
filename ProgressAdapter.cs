@@ -8,11 +8,13 @@ namespace Vertex
     {
         class ProgressAdapter : IProgress<double>
         {
-            ProgressBar progbar;
+            private readonly ProgressBar progbar;
+
             public ProgressAdapter(ProgressBar pb)
             {
                 progbar = pb;
             }
+
             public void Report(double value)
             {
                 var v = (int)(value * 100);

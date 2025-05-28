@@ -45,58 +45,62 @@ using NAudio.MediaFoundation;
 using NAudio.FileFormats.Wav;
 using NAudio.FileFormats.Mp3;
 using Android.Media;
+using Android.Media.Audiofx;
+using System.Threading.Tasks;
+using static Xamarin.Essentials.Permissions;
 
 namespace Vertex
 {
     [Activity(Label = "@string/app_name", Theme = "@style/VertexTheme", MainLauncher = true)]
     public partial class ContentActivity : AppCompatActivity
     {
-        const string STR_PLAY = "►";
-        const string STR_PAUSE = "II";
+        private const string STR_PLAY = "►";
+        private const string STR_PAUSE = "II";
 
-        ProgressBar loadingProgress;
+        private readonly List<TrackData> tracks = new List<TrackData>();
 
-        Button
+        private View contentMain;
+
+        private ProgressBar loadingProgress;
+
+        private Button
             buttonStart,
             buttonPlay;
 
-        ListView listMenu;
+        private ListView listMenu;
 
-        EditText uriEnterText;
+        private EditText uriEnterText;
 
-        TextView
+        private TextView
             reporterText,
             nameholderText,
             durationText,
             textViewCurrentTime,
             textViewLength;
 
-        Playback mediaPlayer;
+        private Playback mediaPlayback;
 
-        SeekBar seekAudio;
+        private SeekBar seekAudio;
 
-        //bool manualSeeking;
-
-        ProgressAdapter pga;
-
-
-        List<TrackData> tracks = new List<TrackData>();
-
-        AudioManager audioManager;
+        private ProgressAdapter pga;
+        private Button buttonEqualizer;
+        private EqualizerController equalizerController;
 
         protected async override void OnCreate(Bundle savedInstanceState)
         {
-            base.OnCreate(savedInstanceState);
-            Xamarin.Essentials.Platform.Init(this, savedInstanceState);
+            AppCompatDelegate.DefaultNightMode = AppCompatDelegate.ModeNightYes;
 
+            base.OnCreate(savedInstanceState);
+
+            Xamarin.Essentials.Platform.Init(this, savedInstanceState);
 
             SetContentView(Resource.Layout.content_main);
 
-            mediaPlayer = new Playback(this);
-
-            //var ab = ((Activity)ApplicationContext).ActionBar; 
+            mediaPlayback = new Playback(this);
 
             #region Controls
+
+            contentMain = FindViewById<RelativeLayout>(Resource.Id.contentMain);
 
             loadingProgress = FindViewById<ProgressBar>(Resource.Id.progressBar1);
 
@@ -110,7 +114,6 @@ namespace Vertex
 
             listMenu = FindViewById<ListView>(Resource.Id.listMenu1);
 
-
             buttonStart = FindViewById<Button>(Resource.Id.button1);
             buttonStart.Click += InitLoader;
 
@@ -118,39 +121,37 @@ namespace Vertex
             buttonPlay.Enabled = false;
             buttonPlay.Click += (s, e) =>
             {
-                if (mediaPlayer.CanPlay)
+                if (mediaPlayback.CanPlay)
                 {
-                    if (mediaPlayer.IsPlaying)
+                    if (mediaPlayback.IsPlaying)
                     {
                         buttonPlay.Text = STR_PLAY;
-                        mediaPlayer.Pause();
+                        mediaPlayback.Pause();
                     }
                     else
                     {
                         buttonPlay.Text = STR_PAUSE;
-                        mediaPlayer.Play();
+                        mediaPlayback.Play();
                     }
                 }
             };
 
-            Permissions.StorageWrite rs = new Permissions.StorageWrite();
-
-            var writegtd = await rs.CheckStatusAsync();
-            if (writegtd == PermissionStatus.Granted)
+            buttonEqualizer = FindViewById<Button>(Resource.Id.buttonEqualizer);
+            buttonEqualizer.Enabled = true;
+            buttonEqualizer.Click += (s, e) =>
             {
-                writegtd = await rs.RequestAsync();
-                if (writegtd == PermissionStatus.Granted)
-                {
-                    InitTracks();
-                }
-            }
 
+                equalizerController ??= new EqualizerController(this, mediaPlayback);
+                equalizerController.ShowDialog();
+
+            };
 
             seekAudio = FindViewById<SeekBar>(Resource.Id.seekBarAudioSeek);
             seekAudio.ProgressChanged += (s, e) =>
             {
+
                 if (seekAudio.Pressed)
-                    mediaPlayer.Seek(seekAudio.Progress / 100f);
+                    mediaPlayback.Seek(seekAudio.Progress / 100f);
             };
 
             var img = FindViewById<ImageView>(Resource.Id.imageView1);
@@ -158,20 +159,24 @@ namespace Vertex
 
             #endregion
 
+            if (await RequirePermissionAsync(new StorageRead()))
+            {
+                InitTracks();
+            }
 
-            mediaPlayer.OnFinished += (s, e) =>
+            mediaPlayback.OnFinished += (s, e) =>
             {
                 buttonPlay.Text = STR_PLAY;
             };
 
-            mediaPlayer.ProgressChanged += (s, e) =>
+            mediaPlayback.ProgressChanged += (s, e) =>
             {
-                seekAudio.Progress = (int)(mediaPlayer.Progress * 100);
-                textViewCurrentTime.Text = $"{mediaPlayer.CurrentPosition:hh\\:mm\\:ss}";
+                seekAudio.Progress = (int)(mediaPlayback.Progress * 100);
+                textViewCurrentTime.Text = $"{mediaPlayback.CurrentPosition:hh\\:mm\\:ss}";
             };
 
-            mediaPlayer.OnPaused += (s, e) =>
-            { 
+            mediaPlayback.OnPaused += (s, e) =>
+            {
                 buttonPlay.Text = STR_PLAY;
             };
 
@@ -179,7 +184,26 @@ namespace Vertex
             pga.OnDone += LoadingDone;
         }
 
-        void InitTracks()
+        private static async Task<bool> RequirePermissionAsync(BasePlatformPermission storageRead)
+        {
+            var permissionStatus = await storageRead.CheckStatusAsync();
+
+            if (permissionStatus == PermissionStatus.Denied)
+            {
+                permissionStatus = await storageRead.RequestAsync();
+                if (permissionStatus == PermissionStatus.Granted)
+                {
+                    return true;
+                }
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        private void InitTracks()
         {
 
             string path = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryMusic).ToString();
@@ -190,13 +214,18 @@ namespace Vertex
 
             files = yts.OrderBy(n => n).Concat(files.Except(yts).OrderBy(n => n));
 
-
-
             MediaMetadataRetriever mtr = new MediaMetadataRetriever();
 
             foreach (var f in files)
             {
-                tracks.Add(TrackData.FromFile(f));
+                try
+                {
+                    var tdata = TrackData.FromFile(f);
+                    tracks.Add(tdata);
+                }
+                catch (Exception)
+                {
+                }
             }
 
             TrackDataAdapter tda = new TrackDataAdapter(this, tracks);
@@ -221,14 +250,11 @@ namespace Vertex
                         uriEnterText.ClearFocus();
                         LoadAudio($"https://youtube.com/watch?v={m.Value}");
                         buttonStart.Enabled = true;
-
-
                     }
                     catch (Exception)
                     {
                         buttonStart.Enabled = true;
-                        reporterText.Text = "Error occured, try again.";
-
+                        reporterText.Text = "Error occured, try again."; 
                     }
                 }
                 else
@@ -244,7 +270,7 @@ namespace Vertex
             buttonStart.Enabled = true;
         }
 
-        async void LoadAudio(string uri)
+        private async void LoadAudio(string uri)
         {
             buttonStart.Enabled = false;
 
@@ -255,69 +281,91 @@ namespace Vertex
             {
                 var video = await youtube.Videos.GetAsync(uri);
 
-
                 var title = video.Title;
                 var duration = video.Duration;
 
                 nameholderText.Text = $"{title}";
                 durationText.Text = $"{duration:hh\\:mm\\:ss}";
 
-
                 var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
-                var audio = streamManifest.GetAudioOnly().WithHighestBitrate();
+                var astreams = streamManifest.GetAudioOnlyStreams();
+                var audio = astreams.First();
+                var proceed = true;
 
+                if (audio != null && proceed)
+                { 
 
-                if (audio != null)
-                {
-                    Permissions.StorageWrite rs = new Permissions.StorageWrite();
-
-                    var writegtd = await rs.CheckStatusAsync();
-                    if (writegtd != PermissionStatus.Granted)
-                    {
-                        await rs.RequestAsync();
+                    if (!await RequirePermissionAsync(new StorageWrite()))
+                    { 
+                        Snackbar.Make(contentMain, $"Cannot write a file without the required permission", Snackbar.LengthLong).Show();
+                        return;
                     }
 
-                    //string path = ApplicationContext.GetExternalFilesDir(Android.OS.Environment.DirectoryMusic).ToString();
                     string path = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryMusic).AbsolutePath;
+
                     var state = Android.OS.Environment.ExternalStorageState;
+                    
                     if (state == "mounted")
                     {
 
                         reporterText.Text = $"Downloading...";
-                        var fullpath = $"{path}/[YE] {title.Replace("/", @"\")}.mp3";
+                        var fullpath = $"{path}/[YE] {title.Replace("/", @"\")}." + audio.Container.Name;
 
                         await youtube.Videos.Streams.DownloadAsync(audio, fullpath, pga);
 
                         SetPlayerAudio(TrackData.FromFile(fullpath));
                     }
+                    else
+                    {
+                        Snackbar.Make(contentMain, $"Cannot write a file without the required permission", Snackbar.LengthLong).Show();
+                    }
                 }
             }
             catch (System.Net.Http.HttpRequestException)
             {
-                reporterText.Text = $"Error occured. No Internet connection.";
+                Snackbar.Make(contentMain, $"Error occured. No Internet connection.", Snackbar.LengthLong).Show();
             }
-            catch (System.IO.IOException)
+            catch (System.IO.IOException e)
             {
-                reporterText.Text = $"Error occured. Internet connection is down.";
+                if (e.HResult == -2147024864)
+                {
+                    Snackbar.Make(contentMain, $"Error occured. Cannot write to device.", Snackbar.LengthLong).Show();
+                }
+                else
+                    Snackbar.Make(contentMain, $"Error occured. Internet connection is down.", Snackbar.LengthLong).Show();
             }
             catch (Exception)
             {
-                reporterText.Text = $"Error occured. Try again.";
+                Snackbar.Make(contentMain, "Error occured. Try again.", Snackbar.LengthLong).Show();
             }
         }
 
         public void SetPlayerAudio(TrackData td)
         {
+            try
+            {
 
-            mediaPlayer.SetAudio(td.Path);
+                mediaPlayback.SetAudio(td.Path);
 
-            buttonPlay.Text = STR_PLAY;
-            buttonPlay.Enabled = true;
+                buttonPlay.Text = STR_PLAY;
+                buttonPlay.Enabled = true;
 
-            nameholderText.Text = $"{td.TrackName}";
-            textViewLength.Text = $"{mediaPlayer.Duration:hh\\:mm\\:ss}";
-            durationText.Text = $"{td.Duration:hh\\:mm\\:ss}";
-            textViewCurrentTime.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
+                nameholderText.Text = $"{td.TrackName}";
+                textViewLength.Text = $"{mediaPlayback.Duration:hh\\:mm\\:ss}";
+                durationText.Text = $"{td.Duration:hh\\:mm\\:ss}";
+                textViewCurrentTime.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
+                reporterText.Text = $"";
+            }
+            catch (Exception e)
+            {
+                Snackbar.Make(contentMain, "Failed to play audio", Snackbar.LengthLong).Show();
+                //reporterText.Text = $"Failed to play audio";
+                System.Diagnostics.Debug.WriteLine(e.Message);
+                nameholderText.Text = $"";
+                textViewLength.Text = $"";
+                durationText.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
+                textViewCurrentTime.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
+            }
         }
 
         public override bool OnCreateOptionsMenu(IMenu menu)
@@ -335,13 +383,6 @@ namespace Vertex
             }
 
             return base.OnOptionsItemSelected(item);
-        }
-
-        private void FabOnClick(object sender, EventArgs eventArgs)
-        {
-            View view = (View)sender;
-            Snackbar.Make(view, "Replace with your own action", Snackbar.LengthLong)
-                .SetAction("Action", (Android.Views.View.IOnClickListener)null).Show();
         }
 
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Android.Content.PM.Permission[] grantResults)
