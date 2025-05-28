@@ -48,6 +48,8 @@ using Android.Media;
 using Android.Media.Audiofx;
 using System.Threading.Tasks;
 using static Xamarin.Essentials.Permissions;
+using Android.Content;
+using Android.Preferences;
 
 namespace Vertex
 {
@@ -96,7 +98,6 @@ namespace Vertex
 
             SetContentView(Resource.Layout.content_main);
 
-            mediaPlayback = new Playback(this);
 
             #region Controls
 
@@ -159,10 +160,13 @@ namespace Vertex
 
             #endregion
 
+
             if (await RequirePermissionAsync(new StorageRead()))
             {
                 InitTracks();
             }
+
+            mediaPlayback = new Playback(this);
 
             mediaPlayback.OnFinished += (s, e) =>
             {

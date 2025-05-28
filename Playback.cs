@@ -7,6 +7,7 @@ using Android.Media.Audiofx;
 using System.Linq;
 using static Android.Media.Audiofx.AudioEffect;
 using Android.App;
+using Android.Preferences;
 
 namespace Vertex
 {
@@ -21,7 +22,8 @@ namespace Vertex
             private Timer timespanTask;
             private int headsetWarn;
             private Java.IO.File audioFile;
-            private Equalizer equalizer;
+            private Equalizer equalizer; 
+            private ISharedPreferences sharedPreferences;
 
             public TimeSpan CurrentPosition
             {
@@ -46,10 +48,30 @@ namespace Vertex
             public Playback(Activity ctx)
             {
                 this.activity = ctx;
-                audioManager = (AudioManager)ctx.GetSystemService(AudioService); 
+                audioManager = (AudioManager)ctx.GetSystemService(AudioService);
+
+                LoadPreferences();
             }
 
-            void PlaybackUpdate()
+            private void LoadPreferences()
+            { 
+                sharedPreferences = PreferenceManager.GetDefaultSharedPreferences(activity);
+
+                var joinBands = sharedPreferences.GetString("EqualizerBandLevels", null);
+
+                if (joinBands != null)
+                {
+                    var split = joinBands.Split(',');
+
+                    for (int i = 0; i < EqualizerBandLevels.Length; i++)
+                    {
+                        EqualizerBandLevels[i] = short.Parse(split[i]);
+                    }
+                }
+
+            } 
+
+            private void BackgroundTick()
             {
                 if (IsPlaying)
                 {
@@ -76,11 +98,54 @@ namespace Vertex
                 }
             }
 
+            private void SetupEqualizer()
+            {
+                equalizer?.Release();
+
+                equalizer = new Equalizer(0, mediaPlayer.AudioSessionId);
+                equalizer.SetEnabled(true);
+
+                short bands = equalizer.NumberOfBands;
+                var bandlevelranges = equalizer.GetBandLevelRange();
+
+                short minlevel = bandlevelranges[0];
+                short maxlevel = bandlevelranges[1];
+
+                equalizer.SetBandLevel(0, maxlevel);
+            }
+
+            private static bool IsEqualizerSupported()
+            {
+                bool isSupported = false;
+                Descriptor[] descriptors = AudioEffect.QueryEffects();
+
+                foreach (Descriptor descriptor in descriptors)
+                {
+                    if (descriptor.Type.Equals(AudioEffect.EffectTypeEqualizer))
+                    {
+                        isSupported = true;
+                        break;
+                    }
+                }
+
+                return isSupported;
+            }
+             
+            internal void SaveEqualizerBands()
+            {
+                ISharedPreferencesEditor editor = sharedPreferences.Edit();
+
+                var joinBands = string.Join(",", EqualizerBandLevels);
+                editor.PutString("EqualizerBandLevels", joinBands);
+
+                editor.Apply();
+            }
+             
             public void SetAudio(string path)
             {
                 mediaPlayer?.Stop();
                 mediaPlayer?.Dispose();
-                 
+
 
                 audioFile = new Java.IO.File(path);
                 var furi = Android.Net.Uri.FromFile(audioFile);
@@ -122,39 +187,6 @@ namespace Vertex
                 };
             }
 
-            private void SetupEqualizer()
-            {
-                equalizer?.Release();
-
-                equalizer = new Equalizer(0, mediaPlayer.AudioSessionId);
-                equalizer.SetEnabled(true);
-
-                short bands = equalizer.NumberOfBands;
-                var bandlevelranges = equalizer.GetBandLevelRange();
-
-                short minlevel = bandlevelranges[0];
-                short maxlevel = bandlevelranges[1];
-
-                equalizer.SetBandLevel(0, maxlevel);
-            }
-
-            private static bool IsEqualizerSupported()
-            {
-                bool isSupported = false;
-                Descriptor[] descriptors = AudioEffect.QueryEffects();
-
-                foreach (Descriptor descriptor in descriptors)
-                {
-                    if (descriptor.Type.Equals(AudioEffect.EffectTypeEqualizer))
-                    {
-                        isSupported = true;
-                        break;
-                    }
-                }
-
-                return isSupported;
-            }
-
             public void Play()
             {
                 if (CanPlay)
@@ -164,11 +196,11 @@ namespace Vertex
                     timespanTask?.Stop();
 
                     //running = true;
-                    timespanTask = new Timer(PlaybackUpdate, 500);
+                    timespanTask = new Timer(BackgroundTick, 500);
                     timespanTask.Start();
                 }
             }
-             
+
             public void Pause()
             {
                 if (CanPlay)
@@ -176,15 +208,18 @@ namespace Vertex
                     mediaPlayer.Pause();
                 }
             }
-             
+
             public void Seek(float f) => mediaPlayer?.SeekTo((long)(mediaPlayer.Duration * f), MediaPlayerSeekMode.NextSync);
 
             public void SeekPrecise(long msec) => mediaPlayer?.SeekTo(msec, MediaPlayerSeekMode.NextSync);
 
             public void ChangeBand(short band, short value)
             {
-                EqualizerBandLevels[band] = value;
-                equalizer?.SetBandLevel(band, value);
+                lock (EqualizerBandLevels)
+                {
+                    EqualizerBandLevels[band] = value;
+                    equalizer?.SetBandLevel(band, value); 
+                }
             }
         }
     }

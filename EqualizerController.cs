@@ -52,8 +52,13 @@ namespace Vertex
                 band.Progress = playback.EqualizerBandLevels[i];
                 band.ProgressChanged += BandValueChanged;
             }
-            
+
             dialog.Show();
+
+            dialog.CancelEvent += (s, e) =>
+            {
+                playback.SaveEqualizerBands();
+            };
         }
 
         private void BandValueChanged(object sender, SeekBar.ProgressChangedEventArgs e)
