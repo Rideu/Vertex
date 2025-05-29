@@ -12,7 +12,6 @@ using Android.Runtime;
 using Android.Widget;
 using Android.Views;
 using Android.Support.Design.Widget;
-using Xamarin.Essentials;
 using Android.Media;
 
 using YoutubeExplode;
@@ -20,6 +19,7 @@ using YoutubeExplode;
 using Vertex.Media;
 using Vertex.Utils;
 
+using Xamarin.Essentials;
 using static Xamarin.Essentials.Permissions;
 
 namespace Vertex
@@ -31,6 +31,8 @@ namespace Vertex
         private const string STR_PAUSE = "II";
 
         private readonly List<TrackData> tracks = new List<TrackData>();
+
+        //private HeadphoneConnectionReceiver headphoneReceiver;
 
         private View contentMain;
 
@@ -58,6 +60,7 @@ namespace Vertex
         private ProgressAdapter pga;
         private Button buttonEqualizer;
         private EqualizerController equalizerController;
+        private BluetoothConnectionReceiver bluetoothReceiver;
 
         protected async override void OnCreate(Bundle savedInstanceState)
         {
@@ -137,6 +140,11 @@ namespace Vertex
                 InitTracks();
             }
 
+            //headphoneReceiver = new HeadphoneConnectionReceiver();
+            //var filter = new IntentFilter(Intent.ActionHeadsetPlug);
+            //RegisterReceiver(headphoneReceiver, filter);
+
+                        
             mediaPlayback = new Playback(this);
 
             mediaPlayback.OnFinished += (s, e) =>
@@ -150,10 +158,17 @@ namespace Vertex
                 textViewCurrentTime.Text = $"{mediaPlayback.CurrentPosition:hh\\:mm\\:ss}";
             };
 
+            mediaPlayback.OnResume += (s, e) =>
+            {
+                buttonPlay.Text = STR_PAUSE;
+            };
+
             mediaPlayback.OnPaused += (s, e) =>
             {
                 buttonPlay.Text = STR_PLAY;
             };
+
+            bluetoothReceiver = new BluetoothConnectionReceiver(this, mediaPlayback);
 
             pga = new ProgressAdapter(loadingProgress);
             pga.OnDone += LoadingDone;
@@ -229,7 +244,7 @@ namespace Vertex
                     catch (Exception)
                     {
                         buttonStart.Enabled = true;
-                        reporterText.Text = "Error occured, try again."; 
+                        reporterText.Text = "Error occured, try again.";
                     }
                 }
                 else
@@ -268,10 +283,10 @@ namespace Vertex
                 var proceed = true;
 
                 if (audio != null && proceed)
-                { 
+                {
 
                     if (!await RequirePermissionAsync(new StorageWrite()))
-                    { 
+                    {
                         Snackbar.Make(contentMain, $"Cannot write a file without the required permission", Snackbar.LengthLong).Show();
                         return;
                     }
@@ -279,7 +294,7 @@ namespace Vertex
                     string path = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryMusic).AbsolutePath;
 
                     var state = Android.OS.Environment.ExternalStorageState;
-                    
+
                     if (state == "mounted")
                     {
 
@@ -342,10 +357,14 @@ namespace Vertex
                 textViewCurrentTime.Text = $"{new TimeSpan():hh\\:mm\\:ss}";
             }
         }
-
+         
         protected override void OnDestroy()
         {
             base.OnDestroy();
+
+            //UnregisterReceiver(headphoneReceiver); 
+
+            bluetoothReceiver.Unregister();
 
             mediaPlayback?.Release();
         }

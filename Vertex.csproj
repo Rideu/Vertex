@@ -69,6 +69,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Media\EqualizerController.cs" />
+    <Compile Include="Utils\HeadphoneConnectionReceiver.cs" />
+    <Compile Include="Interfaces\IAudioOutputStateHandler.cs" />
     <Compile Include="Utils\Timer.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="Media\Playback.cs" />

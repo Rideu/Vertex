@@ -5,19 +5,20 @@ using Android.Media;
 using Android.Content;
 using Android.Media.Audiofx;
 using Vertex.Utils;
+using Vertex.Interfaces;
+using Android.Bluetooth;
 
 using Android.Util;
 
 namespace Vertex.Media
 {
-    public class Playback
+    public class Playback : IAudioOutputStateHandler
     {
         private static readonly string TAG = "Playback";
         private readonly Activity activity;
         private readonly AudioManager audioManager;
         private MediaPlayer mediaPlayer;
-        private Timer timespanTask;
-        private int headsetWarn;
+        private Timer timespanTask; 
         private Java.IO.File audioFile;
         private Equalizer equalizer;
         private ISharedPreferences sharedPreferences;
@@ -38,8 +39,11 @@ namespace Vertex.Media
 
         public bool CanPlay => mediaPlayer != null;
 
+        public bool IsInterrupted { get; private set; }
+
         public event EventHandler ProgressChanged;
         public event EventHandler OnPaused;
+        public event EventHandler OnResume;
         public event EventHandler OnFinished;
 
         public Playback(Activity ctx)
@@ -69,28 +73,12 @@ namespace Vertex.Media
         private void BackgroundTick()
         {
             if (IsPlaying)
-                activity.RunOnUiThread(PeekPlaybackUpdate);
-        }
-
-        private void PeekPlaybackUpdate()
-        {
-            ProgressChanged?.BeginInvoke(null, EventArgs.Empty, null, null);
-
-            if (!audioManager.WiredHeadsetOn)
-            {
-                headsetWarn++;
-                if (headsetWarn == 4)
-                {
-                    Pause();
-                    OnPaused?.Invoke(this, EventArgs.Empty);
-                }
-            }
-            else
-                headsetWarn = 0;
+                activity.RunOnUiThread(InvokeProgressChanged);
         }
 
         private void SetupEqualizer()
         {
+
             equalizer?.Release();
 
             equalizer = new Equalizer(0, mediaPlayer.AudioSessionId);
@@ -135,7 +123,6 @@ namespace Vertex.Media
             mediaPlayer?.Stop();
             mediaPlayer?.Dispose();
 
-
             audioFile = new Java.IO.File(path);
             var furi = Android.Net.Uri.FromFile(audioFile);
 
@@ -146,6 +133,8 @@ namespace Vertex.Media
             var iseqsupported = IsEqualizerSupported();
 
             if (iseqsupported)
+            {
+
                 try
                 {
                     SetupEqualizer();
@@ -154,6 +143,7 @@ namespace Vertex.Media
                 {
                     Log.Warn(TAG, $"Couldn't init equalizer: {e.Message}");
                 }
+            }
 
 
             mediaPlayer.Looping = true;
@@ -182,17 +172,38 @@ namespace Vertex.Media
 
                 timespanTask?.Stop();
 
-                //running = true;
                 timespanTask = new Timer(BackgroundTick, 500);
                 timespanTask.Start();
+
+                if (IsInterrupted)
+                    activity.RunOnUiThread(InvokeOnResume);
             }
+        }
+
+        private void InvokeProgressChanged()
+        {
+            ProgressChanged?.Invoke(null, EventArgs.Empty);
+        }
+
+        private void InvokeOnResume()
+        {
+            OnResume?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void InvokeOnPaused()
+        {
+            OnPaused?.Invoke(this, EventArgs.Empty);
         }
 
         public void Pause()
         {
             if (CanPlay)
-                mediaPlayer.Pause();
+            {
+                mediaPlayer?.Pause();
+                activity.RunOnUiThread(InvokeOnPaused);
+            }
         }
+
 
         public void Seek(float f) => mediaPlayer?.SeekTo((long)(mediaPlayer.Duration * f), MediaPlayerSeekMode.NextSync);
 
@@ -212,6 +223,37 @@ namespace Vertex.Media
             equalizer?.Release();
             mediaPlayer?.Release();
             timespanTask?.Release();
+        }
+
+        void IAudioOutputStateHandler.OnStateChanged(AudioStateEventArgs e)
+        {
+            switch (e.AudioOutputState)
+            {
+                case AudioOutputState.Connected:
+
+                    if (IsInterrupted)
+                    {
+                        if (e.Device.DeviceClass == DeviceClass.AudioVideoWearableHeadset)
+                            Play();
+
+                        IsInterrupted = false;
+                    }
+
+                    break;
+                case AudioOutputState.Disconnected:
+
+                    if (e.Device.DeviceClass == DeviceClass.AudioVideoWearableHeadset)
+                    { 
+                        if (IsPlaying)
+                            IsInterrupted = true;
+
+                        Pause();
+                    }
+
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
