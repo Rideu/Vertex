@@ -343,6 +343,13 @@ namespace Vertex
             }
         }
 
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+
+            mediaPlayback?.Release();
+        }
+
         public override bool OnCreateOptionsMenu(IMenu menu)
         {
             MenuInflater.Inflate(Resource.Menu.menu_main, menu);

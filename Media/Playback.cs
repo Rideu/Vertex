@@ -6,10 +6,13 @@ using Android.Content;
 using Android.Media.Audiofx;
 using Vertex.Utils;
 
+using Android.Util;
+
 namespace Vertex.Media
 {
     public class Playback
     {
+        private static readonly string TAG = "Playback";
         private readonly Activity activity;
         private readonly AudioManager audioManager;
         private MediaPlayer mediaPlayer;
@@ -149,7 +152,7 @@ namespace Vertex.Media
                 }
                 catch (Exception e)
                 {
-
+                    Log.Warn(TAG, $"Couldn't init equalizer: {e.Message}");
                 }
 
 
@@ -202,6 +205,13 @@ namespace Vertex.Media
                 EqualizerBandLevels[band] = value;
                 equalizer?.SetBandLevel(band, value);
             }
+        }
+
+        internal void Release()
+        {
+            equalizer?.Release();
+            mediaPlayer?.Release();
+            timespanTask?.Release();
         }
     }
 

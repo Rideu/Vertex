@@ -36,5 +36,10 @@ namespace Vertex.Utils
         {
             cancelTimerTask.Cancel();
         }
+
+        internal void Release()
+        {
+            cancelTimerTask?.Cancel(); 
+        }
     }
 }
